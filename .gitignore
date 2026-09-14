@@ -1,0 +1,19 @@
+# QNX/Eclipse generated build output
+build/
+Debug/
+Release/
+
+# Compiled files
+*.o
+*.d
+*.map
+*.sym
+*.elf
+*.exe
+
+# Editor and operating-system files
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*~
