@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LumiGrid-RT Live Dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --panel: rgba(15, 31, 49, 0.88);
+      --panel-2: rgba(18, 39, 60, 0.72);
+      --line: rgba(148, 184, 211, 0.16);
+      --text: #f4f9fc;
+      --muted: #91a9bb;
+      --cyan: #25c7e8;
+      --blue: #4f89ff;
+      --amber: #ffbd4a;
+      --green: #3bdb9b;
+      --red: #ff5468;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 12%, rgba(37, 199, 232, 0.14), transparent 28rem),
+        radial-gradient(circle at 88% 15%, rgba(79, 137, 255, 0.12), transparent 28rem),
+        linear-gradient(145deg, #050b14 0%, var(--bg) 45%, #081827 100%);
+      font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.28;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 82%);
+    }
+
+    .shell {
+      width: min(1540px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 24px 0 34px;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 22px;
+      margin-bottom: 18px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 15px; }
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      font-size: 25px;
+      background: linear-gradient(145deg, rgba(37,199,232,.27), rgba(79,137,255,.16));
+      border: 1px solid rgba(74, 218, 246, .34);
+      box-shadow: 0 0 28px rgba(37, 199, 232, .16);
+    }
+    h1 { margin: 0; font-size: clamp(1.35rem, 2.4vw, 2rem); letter-spacing: -.035em; }
+    .subtitle { color: var(--muted); margin-top: 3px; font-size: .9rem; }
+
+    .header-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(8, 20, 33, .72);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .045em;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #607486; }
+    .connected .dot { background: var(--green); box-shadow: 0 0 12px var(--green); }
+    .connected { color: #c7ffe9; border-color: rgba(59,219,155,.34); }
+    .rt-active { color: #d4f8ff; border-color: rgba(37,199,232,.34); }
+
+    .emergency-banner {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 0 0 18px;
+      padding: 13px 18px;
+      border-radius: 14px;
+      background: linear-gradient(90deg, rgba(255, 42, 69, .92), rgba(255, 92, 62, .92));
+      box-shadow: 0 12px 40px rgba(255, 55, 77, .24);
+      font-weight: 900;
+      letter-spacing: .09em;
+    }
+    .emergency-banner.active { display: flex; animation: pulse-banner 1.5s infinite; }
+    @keyframes pulse-banner { 50% { filter: brightness(1.13); } }
+
+    .zone-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: linear-gradient(150deg, var(--panel), rgba(11, 27, 44, .82));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .zone-card { padding: 21px; position: relative; overflow: hidden; }
+    .zone-card::after {
+      content: "";
+      position: absolute;
+      width: 230px;
+      height: 230px;
+      right: -100px;
+      top: -110px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(37,199,232,.11), transparent 68%);
+      pointer-events: none;
+    }
+    .zone-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .zone-name { display: flex; align-items: center; gap: 11px; font-size: 1.15rem; font-weight: 850; }
+    .zone-number {
+      width: 33px; height: 33px; display: grid; place-items: center; border-radius: 10px;
+      color: #04121b; background: linear-gradient(135deg, #65e5f7, var(--cyan));
+      font-size: .9rem;
+    }
+    .mode {
+      position: relative; z-index: 1; padding: 6px 11px; border-radius: 9px;
+      border: 1px solid rgba(37,199,232,.32); background: rgba(37,199,232,.10);
+      color: #aaf4ff; font-size: .72rem; font-weight: 850; letter-spacing: .055em;
+    }
+    .mode.emergency { color: #fff; background: rgba(255,84,104,.23); border-color: rgba(255,84,104,.55); }
+    .mode.failsafe { color: #ffe5ad; background: rgba(255,189,74,.16); border-color: rgba(255,189,74,.45); }
+
+    .zone-main { display: grid; grid-template-columns: 180px 1fr; gap: 22px; align-items: center; margin-top: 19px; }
+    .gauge {
+      --angle: 0deg;
+      width: 164px; height: 164px; border-radius: 50%; position: relative; display: grid; place-items: center;
+      background: conic-gradient(var(--cyan) var(--angle), rgba(99,130,153,.16) 0deg);
+      box-shadow: 0 0 34px rgba(37,199,232,.11);
+    }
+    .gauge::before {
+      content: ""; width: 128px; height: 128px; border-radius: 50%;
+      position: absolute; background: #0b1b2b; border: 1px solid rgba(255,255,255,.05);
+      box-shadow: inset 0 0 24px rgba(0,0,0,.28);
+    }
+    .gauge-value { position: relative; text-align: center; }
+    .gauge-number { display: block; font-size: 2.3rem; font-weight: 900; line-height: 1; letter-spacing: -.05em; }
+    .gauge-label { display: block; color: var(--muted); font-size: .72rem; margin-top: 7px; letter-spacing: .08em; }
+
+    .target-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .sensor-box {
+      padding: 13px 14px; min-height: 72px; border-radius: 14px;
+      background: rgba(7, 20, 33, .58); border: 1px solid rgba(151, 190, 216, .10);
+    }
+    .sensor-label { color: var(--muted); font-size: .68rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .sensor-value { margin-top: 6px; font-size: 1.15rem; font-weight: 850; }
+    .sensor-value.good { color: var(--green); }
+    .sensor-value.warn { color: var(--amber); }
+    .sensor-value.alert { color: var(--red); }
+
+    .prediction { margin-top: 12px; }
+    .prediction-head { display: flex; justify-content: space-between; color: var(--muted); font-size: .75rem; margin-bottom: 7px; }
+    .track { height: 8px; border-radius: 8px; overflow: hidden; background: rgba(102,133,157,.17); }
+    .fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--cyan)); transition: width .35s ease; }
+
+    .metrics-grid { display: grid; grid-template-columns: 1.2fr repeat(5, minmax(115px, .72fr)); gap: 12px; margin-top: 18px; }
+    .metric { padding: 15px 16px; min-height: 92px; }
+    .metric-label { color: var(--muted); text-transform: uppercase; letter-spacing: .075em; font-size: .64rem; font-weight: 800; }
+    .metric-value { margin-top: 9px; font-size: 1.48rem; font-weight: 900; letter-spacing: -.035em; white-space: nowrap; }
+    .metric-detail { color: #718da2; font-size: .68rem; margin-top: 4px; }
+    .metric.energy .metric-value { color: var(--green); }
+    .metric.zero .metric-value { color: var(--green); }
+
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .65fr); gap: 18px; margin-top: 18px; }
+    .chart-card { padding: 18px 20px 16px; min-height: 230px; }
+    .section-title { margin: 0; font-size: .9rem; letter-spacing: .02em; }
+    .section-note { color: var(--muted); font-size: .7rem; margin-top: 3px; }
+    #history { width: 100%; height: 170px; display: block; margin-top: 9px; }
+
+    .evidence { padding: 18px 20px; }
+    .evidence-list { display: grid; gap: 11px; margin-top: 16px; }
+    .evidence-row { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .evidence-row:last-child { border: 0; padding-bottom: 0; }
+    .evidence-key { color: var(--muted); font-size: .73rem; }
+    .evidence-value { font-size: .76rem; font-weight: 800; text-align: right; }
+
+    footer { display: flex; justify-content: space-between; gap: 16px; color: #658095; font-size: .67rem; padding: 14px 5px 0; }
+
+    .waiting {
+      position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+      background: rgba(3, 9, 16, .72); backdrop-filter: blur(8px); transition: opacity .25s ease;
+    }
+    .waiting.hidden { opacity: 0; pointer-events: none; }
+    .waiting-box { text-align: center; padding: 28px 38px; border-radius: 20px; background: #0d1f31; border: 1px solid rgba(37,199,232,.25); box-shadow: var(--shadow); }
+    .spinner { width: 34px; height: 34px; margin: 0 auto 14px; border: 3px solid rgba(37,199,232,.18); border-top-color: var(--cyan); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .waiting-title { font-weight: 900; }
+    .waiting-note { color: var(--muted); margin-top: 6px; font-size: .78rem; }
+
+    @media (max-width: 1060px) {
+      .zone-main { grid-template-columns: 148px 1fr; }
+      .gauge { width: 142px; height: 142px; }
+      .gauge::before { width: 110px; height: 110px; }
+      .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 790px) {
+      .shell { width: min(100% - 22px, 720px); }
+      header { align-items: flex-start; flex-direction: column; }
+      .header-status { justify-content: flex-start; }
+      .zone-grid, .lower-grid { grid-template-columns: 1fr; }
+      .zone-main { grid-template-columns: 142px 1fr; }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      footer { flex-direction: column; }
+    }
+    @media (max-width: 480px) {
+      .zone-main { grid-template-columns: 1fr; }
+      .gauge { margin: auto; }
+      .target-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="waiting" id="waiting">
+    <div class="waiting-box">
+      <div class="spinner"></div>
+      <div class="waiting-title">Waiting for live QNX data</div>
+      <div class="waiting-note">Keep the bridge terminal open</div>
+    </div>
+  </div>
+
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="brand-mark">◉</div>
+        <div>
+          <h1>LumiGrid-RT</h1>
+          <div class="subtitle">QNX Smart Street Lighting · Live Operations Dashboard</div>
+        </div>
+      </div>
+      <div class="header-status">
+        <div class="chip" id="connection"><span class="dot"></span><span>QNX LINK</span></div>
+        <div class="chip" id="rtStatus">RT_FIFO UNKNOWN</div>
+        <div class="chip" id="clock">--:--:--</div>
+      </div>
+    </header>
+
+    <div class="emergency-banner" id="emergencyBanner">⚠ EMERGENCY OVERRIDE ACTIVE — ALL ZONES AT 100%</div>
+
+    <section class="zone-grid">
+      <article class="card zone-card" id="zone1">
+        <div class="zone-top">
+          <div class="zone-name"><span class="zone-number">01</span> Zone 1</div>
+          <span class="mode">WAITING</span>
+        </div>
+        <div class="zone-main">
+          <div class="gauge"><div class="gauge-value"><span class="gauge-number">0%</span><span class="gauge-label">BRIGHTNESS</span></div></div>
+          <div>
+            <div class="target-row">
+              <div class="sensor-box"><div class="sensor-label">Target</div><div class="sensor-value target">0%</div></div>
+              <div class="sensor-box"><div class="sensor-label">IR occupancy</div><div class="sensor-value ir">NO</div></div>
+              <div class="sensor-box"><div class="sensor-label">LDR raw</div><div class="sensor-value ldr">—</div></div>
+              <div class="sensor-box"><div class="sensor-label">Ambient</div><div class="sensor-value ambient">—</div></div>
+            </div>
+            <div class="prediction"><div class="prediction-head"><span>Predicted activity</span><strong class="prediction-value">0%</strong></div><div class="track"><div class="fill"></div></div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card zone-card" id="zone2">
+        <div class="zone-top">
+          <div class="zone-name"><span class="zone-number">02</span> Zone 2</div>
+          <span class="mode">WAITING</span>
+        </div>
+        <div class="zone-main">
+          <div class="gauge"><div class="gauge-value"><span class="gauge-number">0%</span><span class="gauge-label">BRIGHTNESS</span></div></div>
+          <div>
+            <div class="target-row">
+              <div class="sensor-box"><div class="sensor-label">Target</div><div class="sensor-value target">0%</div></div>
+              <div class="sensor-box"><div class="sensor-label">IR occupancy</div><div class="sensor-value ir">NO</div></div>
+              <div class="sensor-box"><div class="sensor-label">LDR raw</div><div class="sensor-value ldr">—</div></div>
+              <div class="sensor-box"><div class="sensor-label">Ambient</div><div class="sensor-value ambient">—</div></div>
+            </div>
+            <div class="prediction"><div class="prediction-head"><span>Predicted activity</span><strong class="prediction-value">0%</strong></div><div class="track"><div class="fill"></div></div></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="metrics-grid">
+      <article class="card metric energy"><div class="metric-label">Energy saving</div><div class="metric-value" id="energy">0.00%</div><div class="metric-detail">against full-power baseline</div></article>
+      <article class="card metric"><div class="metric-label">Mean latency</div><div class="metric-value" id="meanLatency">0 µs</div><div class="metric-detail">event processing</div></article>
+      <article class="card metric"><div class="metric-label">P95 latency</div><div class="metric-value" id="p95Latency">0 µs</div><div class="metric-detail">95th percentile</div></article>
+      <article class="card metric"><div class="metric-label">Messages</div><div class="metric-value" id="messages">0</div><div class="metric-detail">processed by QNX</div></article>
+      <article class="card metric zero"><div class="metric-label">Sampling misses</div><div class="metric-value" id="misses">0</div><div class="metric-detail">period violations</div></article>
+      <article class="card metric zero"><div class="metric-label">Fail-safe entries</div><div class="metric-value" id="failsafes">0</div><div class="metric-detail">stale/fault events</div></article>
+    </section>
+
+    <section class="lower-grid">
+      <article class="card chart-card">
+        <h2 class="section-title">Live LED brightness</h2>
+        <div class="section-note">Last 60 QNX controller updates · Zone 1 cyan · Zone 2 blue</div>
+        <canvas id="history"></canvas>
+      </article>
+      <article class="card evidence">
+        <h2 class="section-title">Real-time evidence</h2>
+        <div class="section-note">Reported by the QNX controller</div>
+        <div class="evidence-list">
+          <div class="evidence-row"><span class="evidence-key">Runtime</span><span class="evidence-value" id="runtime">0.0 s</span></div>
+          <div class="evidence-row"><span class="evidence-key">Max latency</span><span class="evidence-value" id="maxLatency">0 µs</span></div>
+          <div class="evidence-row"><span class="evidence-key">Emergency max</span><span class="evidence-value" id="emergencyMax">0 µs</span></div>
+          <div class="evidence-row"><span class="evidence-key">Sensor validity</span><span class="evidence-value" id="validity">WAITING</span></div>
+          <div class="evidence-row"><span class="evidence-key">Update age</span><span class="evidence-value" id="updateAge">—</span></div>
+        </div>
+      </article>
+    </section>
+
+    <footer>
+      <span>Controller, prediction, fail-safe and PWM decisions execute on QNX 8.0.</span>
+      <span>Dashboard is visualization only · Nano ↔ Windows bridge ↔ QNX Raspberry Pi 4</span>
+    </footer>
+  </main>
+
+  <script>
+    const history = [[], []];
+    let lastUptime = -1;
+    let latestConnected = false;
+
+    const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, Number(value) || 0));
+    const fixed = (value, digits = 1) => (Number(value) || 0).toFixed(digits);
+
+    function setMode(element, mode) {
+      element.textContent = mode || 'UNKNOWN';
+      element.className = 'mode';
+      if (mode === 'EMERGENCY') element.classList.add('emergency');
+      if (mode === 'SENSOR_FAILSAFE' || mode === 'STARTUP_SAFE') element.classList.add('failsafe');
+    }
+
+    function updateZone(index, zone) {
+      if (!zone) return;
+      const card = document.getElementById(`zone${index + 1}`);
+      const brightness = clamp(zone.brightness);
+      const prediction = clamp(zone.prediction);
+      const target = clamp(zone.target);
+
+      card.querySelector('.gauge').style.setProperty('--angle', `${brightness * 3.6}deg`);
+      card.querySelector('.gauge-number').textContent = `${Math.round(brightness)}%`;
+      card.querySelector('.target').textContent = `${Math.round(target)}%`;
+      const ir = card.querySelector('.ir');
+      ir.textContent = zone.ir ? 'DETECTED' : 'CLEAR';
+      ir.className = `sensor-value ir ${zone.ir ? 'alert' : 'good'}`;
+      card.querySelector('.ldr').textContent = zone.ldr_raw ?? '—';
+      const dark = zone.dark ?? Number(zone.lux) < 160;
+      const ambient = card.querySelector('.ambient');
+      ambient.textContent = `${dark ? 'DARK' : 'BRIGHT'} · ${fixed(zone.lux, 0)} lx`;
+      ambient.className = `sensor-value ambient ${dark ? 'warn' : 'good'}`;
+      card.querySelector('.prediction-value').textContent = `${Math.round(prediction)}%`;
+      card.querySelector('.fill').style.width = `${prediction}%`;
+      setMode(card.querySelector('.mode'), zone.mode);
+    }
+
+    function updateDashboard(data) {
+      latestConnected = Boolean(data.dashboard_connected);
+      document.getElementById('waiting').classList.toggle('hidden', latestConnected);
+      document.getElementById('connection').classList.toggle('connected', latestConnected);
+      document.getElementById('connection').querySelector('span:last-child').textContent = latestConnected ? 'QNX LIVE' : 'QNX OFFLINE';
+
+      const rt = document.getElementById('rtStatus');
+      rt.textContent = data.rt_fifo ? 'RT_FIFO ACTIVE' : 'RT_FIFO FALLBACK';
+      rt.classList.toggle('rt-active', Boolean(data.rt_fifo));
+      document.getElementById('emergencyBanner').classList.toggle('active', Boolean(data.emergency));
+
+      (data.zones || []).slice(0, 2).forEach(updateZone);
+      document.getElementById('energy').textContent = `${fixed(data.energy_saving, 2)}%`;
+      document.getElementById('meanLatency').textContent = `${fixed(data.latency_mean_us, 1)} µs`;
+      document.getElementById('p95Latency').textContent = `${fixed(data.latency_p95_us, 1)} µs`;
+      document.getElementById('messages').textContent = Number(data.messages || 0).toLocaleString();
+      document.getElementById('misses').textContent = Number(data.sampling_misses || 0).toLocaleString();
+      document.getElementById('failsafes').textContent = Number(data.failsafe_entries || 0).toLocaleString();
+      document.getElementById('runtime').textContent = `${fixed((data.uptime_ms || 0) / 1000, 1)} s`;
+      document.getElementById('maxLatency').textContent = `${fixed(data.latency_max_us, 1)} µs`;
+      document.getElementById('emergencyMax').textContent = `${fixed(data.emergency_max_us, 1)} µs`;
+      document.getElementById('updateAge').textContent = data.host_age_ms < 1000 ? `${data.host_age_ms} ms` : `${fixed(data.host_age_ms / 1000, 1)} s`;
+      const valid = (data.zones || []).length === 2 && data.zones.every(zone => zone.valid);
+      const validity = document.getElementById('validity');
+      validity.textContent = valid ? '2 / 2 VALID' : 'CHECK SENSOR';
+      validity.style.color = valid ? 'var(--green)' : 'var(--amber)';
+
+      if (data.uptime_ms !== lastUptime && (data.zones || []).length >= 2) {
+        lastUptime = data.uptime_ms;
+        history[0].push(clamp(data.zones[0].brightness));
+        history[1].push(clamp(data.zones[1].brightness));
+        history.forEach(series => { if (series.length > 60) series.shift(); });
+        drawChart();
+      }
+    }
+
+    function drawChart() {
+      const canvas = document.getElementById('history');
+      const ratio = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+      const ctx = canvas.getContext('2d');
+      ctx.scale(ratio, ratio);
+      const width = rect.width;
+      const height = rect.height;
+      const pad = { left: 34, right: 10, top: 12, bottom: 22 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+      ctx.clearRect(0, 0, width, height);
+      ctx.font = '10px Segoe UI';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      [0, 25, 50, 75, 100].forEach(value => {
+        const y = pad.top + plotH * (1 - value / 100);
+        ctx.strokeStyle = 'rgba(151,190,216,.10)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(width - pad.right, y); ctx.stroke();
+        ctx.fillStyle = '#668196'; ctx.fillText(`${value}%`, pad.left - 6, y);
+      });
+      const colors = ['#25c7e8', '#4f89ff'];
+      history.forEach((series, index) => {
+        if (series.length < 1) return;
+        ctx.strokeStyle = colors[index];
+        ctx.lineWidth = 2.4;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        series.forEach((value, point) => {
+          const x = pad.left + (point / Math.max(59, series.length - 1)) * plotW;
+          const y = pad.top + plotH * (1 - value / 100);
+          point === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+    }
+
+    async function poll() {
+      try {
+        const response = await fetch(`/api/state?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('dashboard API unavailable');
+        updateDashboard(await response.json());
+      } catch (_) {
+        latestConnected = false;
+        document.getElementById('waiting').classList.remove('hidden');
+        document.getElementById('connection').classList.remove('connected');
+      }
+    }
+
+    function updateClock() {
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString([], { hour12: false });
+    }
+
+    new ResizeObserver(drawChart).observe(document.getElementById('history'));
+    updateClock();
+    setInterval(updateClock, 1000);
+    poll();
+    setInterval(poll, 500);
+  </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+/build/
+/build-qnx/
+/run/*
+!/run/.gitkeep
+*.o
+*.swp
