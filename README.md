@@ -19,7 +19,7 @@ safety events.
 - Fixed-size POSIX message queues with priority ordering
 - Absolute `CLOCK_MONOTONIC` sensor schedule to prevent timing drift
 - Requested `SCHED_FIFO` priorities with a safe fallback on ordinary Linux
-- Deterministic LDR, PIR, visibility, traffic, emergency, and fault simulation
+- Deterministic LDR, IR, visibility, traffic, emergency, and fault simulation
 - Closed-loop two-zone Nano input and QNX-controlled PCA9685 LED PWM
 - Explainable prediction from EWMA activity, adjacent-zone activity, and a
   24-hour historical profile
